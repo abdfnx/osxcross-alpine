@@ -415,12 +415,7 @@ function download()
     curl $curl_opts -o $filename $uri
   elif command -v wget &>/dev/null; then
     ## wget ##
-    local wget_opts="-c "
-    local output=$(wget --no-config 2>&1)
-    if [[ $output != *--no-config* ]]; then
-      wget_opts+="--no-config "
-    fi
-    wget $wget_opts -O $filename $uri
+    wget -c -O $filename $uri
   else
     echo "Required dependency 'curl or wget' not installed" 1>&2
     exit 1
