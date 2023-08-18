@@ -140,7 +140,7 @@ void Target::overrideDefaultSDKPath(const char *SDKSearchDir) {
   }
 }
 
-bool Target::getSDKPath(std::string &path, bool MacOSX10_16Fix) const {
+bool Target::getSDKPath(std::string &path, bool MacOSX10_16Fix, bool majorVersionOnly) const {
   OSVersion SDKVer = getSDKOSNum();
 
   if (SDK) {
@@ -150,7 +150,11 @@ bool Target::getSDKPath(std::string &path, bool MacOSX10_16Fix) const {
       SDKVer = OSVersion(10, 16);
     path = execpath;
     path += "/../SDK/MacOSX";
-    path += SDKVer.shortStr();
+    if (majorVersionOnly) {
+      path += SDKVer.majorStr();
+    } else {
+      path += SDKVer.shortStr();
+    }
     if (SDKVer <= OSVersion(10, 4))
       path += "u";
     path += ".sdk";
@@ -160,6 +164,9 @@ bool Target::getSDKPath(std::string &path, bool MacOSX10_16Fix) const {
     // Some early 11.0 SDKs are misnamed as 10.16
     if (SDKVer == OSVersion(11, 0) && !MacOSX10_16Fix)
       return getSDKPath(path, true);
+
+    if (SDKVer.minor == 0 && !majorVersionOnly)
+      return getSDKPath(path, false, true);
 
     err << "cannot find macOS SDK (expected in: " << path << ")"
         << err.endl();
@@ -699,6 +706,8 @@ bool Target::setup() {
 
   fargs.push_back(compilerexecname);
 
+  std::string ClangIntrinsicPath;
+
   if (isClang()) {
     std::string tmp;
 
@@ -712,7 +721,7 @@ bool Target::setup() {
     tmp.clear();
 
 #ifndef __APPLE__
-    if (!findClangIntrinsicHeaders(tmp)) {
+    if (!findClangIntrinsicHeaders(ClangIntrinsicPath)) {
       warn << "cannot find clang intrinsic headers; please report this "
               "issue to the OSXCross project" << warn.endl();
     } else {
@@ -721,9 +730,6 @@ bool Target::setup() {
             << "(or later)" << err.endl();
         return false;
       }
-
-      fargs.push_back("-isystem");
-      fargs.push_back(tmp);
     }
 
     tmp.clear();
@@ -773,7 +779,7 @@ bool Target::setup() {
   }
 
   auto addCXXHeaderPath = [&](const std::string &path) {
-    fargs.push_back(isClang() ? "-cxx-isystem" : "-isystem");
+    fargs.push_back("-isystem");
     fargs.push_back(path);
   };
 
@@ -807,6 +813,11 @@ bool Target::setup() {
         args.push_back(MacPortsFrameworksDir);
       }
     }
+  }
+
+  if (isClang() && !ClangIntrinsicPath.empty()) {
+    fargs.push_back("-isystem");
+    fargs.push_back(ClangIntrinsicPath);
   }
 
   if (OSNum.Num()) {
@@ -875,6 +886,10 @@ bool Target::setup() {
 #endif
 
   if (isClang()) {
+    if (SDKOSNum >= OSVersion(14, 0) && clangversion < ClangVersion(17, 0)) {
+      // MacOS 14 SDK uses __ENVIRONMENT_OS_VERSION_MIN_REQUIRED__ in AvailabilityInternal.h
+      fargs.push_back("-D__ENVIRONMENT_OS_VERSION_MIN_REQUIRED__=" + OSNum.numStr());
+    }
     if (clangversion >= ClangVersion(3, 8)) {
       //
       // Silence:

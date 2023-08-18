@@ -54,8 +54,11 @@ case $CLANG_VERSION in
   12.* ) BRANCH=release/12.x;    USE_CMAKE=1; ;;
   13.* ) BRANCH=release/13.x;    USE_CMAKE=1; ;;
   14.* ) BRANCH=release/14.x;    USE_CMAKE=1; ;;
-  15.* ) BRANCH=main;            USE_CMAKE=1; ;;
-     * ) echo "Unsupported Clang version, must be >= 3.2 and <= 15.0" 1>&2; exit 1;
+  15.* ) BRANCH=release/15.x;    USE_CMAKE=1; ;;
+  16.* ) BRANCH=release/16.x;    USE_CMAKE=1; ;;
+  17.* ) BRANCH=main;            USE_CMAKE=1; ;;
+  18.* ) BRANCH=main;            USE_CMAKE=1; ;;
+     * ) echo "Unsupported Clang version, must be >= 3.2 and <= 18.0" 1>&2; exit 1;
 esac
 
 if [ $(osxcross-cmp $CLANG_VERSION ">=" 3.5) -eq 1 ]; then
@@ -79,7 +82,15 @@ fi
 
 export OSXCROSS_NO_10_5_DEPRECATION_WARNING=1
 
+mkdir -p $BUILD_DIR
+
 pushd $BUILD_DIR &>/dev/null
+
+# Check if a build project for compiler-rt already exists.
+# Delete any directory that is called compiler-rt, but is not a build project.
+if [ -d "$BUILD_DIR/compiler-rt" ] && [ ! -d "$BUILD_DIR/compiler_rt/compiler-rt" ]; then
+    rm -rf "$BUILD_DIR/compiler-rt"
+fi
 
 get_sources https://github.com/llvm/llvm-project.git $BRANCH "compiler-rt"
 

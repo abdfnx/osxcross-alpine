@@ -326,6 +326,18 @@ struct OSVersion {
     return tmp.str();
   }
 
+  std::string majorStr() const {
+    std::stringstream tmp;
+    tmp << major;
+    return tmp.str();
+  }
+
+  std::string numStr() const {
+    std::stringstream tmp;
+    tmp << Num();
+    return tmp.str();
+  }
+
   int major;
   int minor;
   int patch;
